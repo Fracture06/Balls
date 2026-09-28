@@ -6,10 +6,17 @@ from pygame import Vector2, Rect
 
 # To Do
 
-# Rounds of enemies
+# Rounds of enemies DONE :3
+
 # Upgrades after each round that change stats around
+
 # More enemy AI types which can be specified with an augment on enemy_init
-# Make the enemies and bullets actually do things (partially done, bullets kill enemies)
+
+# Make the enemies and bullets actually do things (partially done, bullets kill enemies) DONE :3
+
+# Make it so enemies do not spawn on player
+
+# Perks EX: Vampire, random friendly bullets, new moves, ect
 
 #Reminder for when you get back, you were working on hitboxes for bullets around line 297
 
@@ -21,7 +28,7 @@ player_location = Vector2(width / 2, height / 2)
 player_velocity = Vector2(0, 0)
 player_added_velocity = Vector2(0, 0)
 stability = 100
-move_speed = 55
+move_speed = 40
 base_move_speed = move_speed
 playable_region = Rect(0, 0, width, height)
 enemy_count = 0
@@ -37,7 +44,8 @@ enemy_ai = True
 pygame.mixer.init()
 current_wave = 0
 player = "alive"
-player_hp = 4
+max_hp = 4
+player_hp = max_hp
 player_hbox = Rect(0,0,35,35)
 dashing = False
 kills = 0
@@ -56,23 +64,29 @@ max_speed = Vector2(100, 100)  # Applies to all characters that use scrape and r
 
 d_color = "crimson"
 energy = 400.0
-bullet_bounces = 1
+bullet_bounces = 2
 bullet_speed = .2
 shoot_cd_len = 4
 energy_regen = 2
 max_energy = 400
 enemy_base_health = 1
 pygame.mixer.music.load("Thundersnail.mp3")
-lvl_threshold = 5
+lvl_threshold = 3
 
 pygame.mixer.music.play(-1,0.0)
 
 # functions
 
-# Stat bar
-def stat_bar():
-    #global stability
-    global player_velocity
+# The UI
+def ui():
+    energy_bar = Rect(10,10,energy,40)
+    pygame.draw.rect(screen, "slategray", Rect(0,0,(max_energy+20), 60))
+    pygame.draw.rect(screen, "gray17", Rect(10, 10, max_energy, 40))
+    pygame.draw.rect(screen, "dodgerblue", energy_bar)
+    health_bar = Rect(10, 60, player_hp*50, 40)
+    pygame.draw.rect(screen, "slategray", Rect(0, 50, ((max_hp*50) + 20), 60))
+    pygame.draw.rect(screen, "gray17", Rect(10, 60, (max_hp * 50), 40))
+    pygame.draw.rect(screen, "crimson", health_bar)
 
 # Controls Movement, entity agnostic
 def scrape_and_run(current_cords, current_velocity, added_velocity, subject, trail_color, bounces):
@@ -175,7 +189,7 @@ def scrape_and_run(current_cords, current_velocity, added_velocity, subject, tra
 
 # Draws player and runs scrape and run for player
 def driver():
-    global player_location, player_location, player_added_velocity, trail, d_color, player_hp, player_hbox, enemy_count, dashing, player
+    global player_location, player_location, player_added_velocity, trail, d_color, player_hp, player_hbox, enemy_count, dashing, player, kills
 
     # Scrape and run for player
     scrape_and_run(player_location, player_velocity, player_added_velocity, "driver", d_color, 0)
@@ -194,6 +208,7 @@ def driver():
             elif pygame.Rect.colliderect(player_hbox, data["hitbox"]) and dashing == True:
                 data["health"] = 0
                 print ("Melee Kill!")
+                kills += 1
 
     if player_hp <= 0:
         player = "dead"
@@ -231,6 +246,7 @@ def enemy_init():
     }
     enemy_count += 1
 
+# Runs the enemies
 def enemy():
     global enemies, enemy_count, player_location, enemy_ai, kills
     for this_enemy, data in list(enemies.items()):
@@ -245,19 +261,19 @@ def enemy():
         hitbox.center = cord
 
         # Makes enemies less "effective", higher b = slower reaction time
-        active = random.randint(1, 20)
+        active = random.randint(1, 7)
 
         evelocity_add = Vector2(0, 0)
         if enemy_ai and active == 1:
             evelocity_add = Vector2(0,0)
             if cord.x <= player_location.x:
-                evelocity_add.x += move_speed*.1
+                evelocity_add.x += move_speed*.05
             else:
-                evelocity_add.x -= move_speed*.1
+                evelocity_add.x -= move_speed*.05
             if cord.y <= player_location.y:
-                evelocity_add.y += move_speed*.1
+                evelocity_add.y += move_speed*.05
             else:
-                evelocity_add.y -= move_speed*.1
+                evelocity_add.y -= move_speed*.05
         scrape_and_run(cord, e_velocity, evelocity_add, "enemy", color, 0)
 
         # Registers Hits
@@ -274,6 +290,7 @@ def enemy():
         # Render Enemies
         pygame.draw.circle(screen, color, cord, 30)
 
+# Spawns Bullets
 def shoot():
     global bullets, bullet_count, player_location, player_velocity, bullet_bounces, last_velocity, bullet_speed
 
@@ -307,6 +324,7 @@ def shoot():
     }
     bullet_count += 1
 
+# Runs the Bullets
 def bullet():
     global bullets, bullet_count
     for this_bullet, data in list(bullets.items()):
@@ -332,23 +350,24 @@ def bullet():
         # Render Enemies
         pygame.draw.circle(screen, color, cord, 0)
 
+# Spawns Waves of Enemies
 def wave():
     global current_wave
     while current_wave > len(enemies)+1:
         enemy_init()
     current_wave += 1
 
+# Levels you Up
 def lvl_up():
-    global max_energy, bullet_bounces, player_hp, shoot_cd_len, energy_regen
+    global max_energy, bullet_bounces, player_hp, shoot_cd_len, energy_regen, max_hp
     max_energy += 50
     bullet_bounces += 1
+    max_hp += 1
     player_hp += 1
     if shoot_cd_len > 0:
         shoot_cd_len -= 1
     energy_regen += 1
     print ("LEVEL UP!")
-
-
 
 # initialization
 pygame.init()
@@ -392,6 +411,10 @@ while running:
     #                                                  -abs(2 * stability / stability_impact))
     #            player_added_velocity.x += random.uniform(abs(2 * stability / stability_impact),
     #                                                  -abs(2 * stability / stability_impact))
+
+    #prevents post death hp gain error
+    if player == "dead":
+        player_hp = 0
 
     # Controls
     keys = pygame.key.get_pressed()
@@ -455,6 +478,8 @@ while running:
         lvl_up()
         lvl_threshold *= 2
         kills = 0
+
+    ui()
 
     # misc
     pygame.display.flip()
