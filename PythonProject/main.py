@@ -9,7 +9,7 @@ from pygame import Vector2, Rect
 # Rounds of enemies
 # Upgrades after each round that change stats around
 # More enemy AI types which can be specified with an augment on enemy_init
-# Make the enemies and bullets actually do things
+# Make the enemies and bullets actually do things (partially done, bullets kill enemies)
 
 #Reminder for when you get back, you were working on hitboxes for bullets around line 297
 
@@ -34,37 +34,44 @@ shooting = False
 last_velocity = Vector2(1,1)
 shoot_cd = 0
 enemy_ai = True
+pygame.mixer.init()
+current_wave = 0
+player = "alive"
+player_hp = 4
+player_hbox = Rect(0,0,35,35)
+dashing = False
+kills = 0
 
 # Quick Settings
 trail = 23
 min_speed = Vector2(.1, .1)  # Applies to all characters that use scrape and run
 max_speed = Vector2(100, 100)  # Applies to all characters that use scrape and run
-stability_mode = False
-stability_impact = 90 # changes how much stability affects gameplay, further from 0 = less impact
-stability_floor = -300
+
+# Both Stability mode and Gravity have been removed for being "stupid and boring"
+
+#stability_mode = False
+#stability_impact = 90 # changes how much stability affects gameplay, further from 0 = less impact
+#stability_floor = -300
 #gravity_factor = 1 Abandoned by its God (me)
+
 d_color = "crimson"
 energy = 400.0
-bullet_bounces = 4
+bullet_bounces = 1
 bullet_speed = .2
-shoot_cd_len = 3
+shoot_cd_len = 4
 energy_regen = 2
 max_energy = 400
 enemy_base_health = 1
+pygame.mixer.music.load("Thundersnail.mp3")
+lvl_threshold = 5
 
-#Level Up Card Options
-upgradable_stats = {
-    "Max Energy" : max_energy,
-    "Bullet Bounces" : bullet_bounces,
-    "Cooldown" : shoot_cd_len,
-    "Color" : d_color
-}
+pygame.mixer.music.play(-1,0.0)
 
 # functions
 
 # Stat bar
 def stat_bar():
-    global stability
+    #global stability
     global player_velocity
 
 # Controls Movement, entity agnostic
@@ -122,16 +129,16 @@ def scrape_and_run(current_cords, current_velocity, added_velocity, subject, tra
         current_velocity.x *= -1
         current_cords.x += current_velocity.x
         current_cords.y += current_velocity.y
-        if subject == "driver" and stability_mode:
-            stability -= 50
+        #if subject == "driver" and stability_mode:
+        #    stability -= 50
     elif current_cords.y + current_velocity.y >= height or current_cords.y + current_velocity.y <= 0:
         #print("Something Hit Something")
         hit_wall = True
         current_velocity.y *= -1
         current_cords.x += current_velocity.x
         current_cords.y += current_velocity.y
-        if subject == "driver" and stability_mode:
-            stability -= 50
+        #if subject == "driver" and stability_mode:
+        #    stability -= 50
     elif playable_region.collidepoint(current_cords.x + current_velocity.x, current_cords.y + current_velocity.y):
         current_cords.x += current_velocity.x
         current_cords.y += current_velocity.y
@@ -168,30 +175,28 @@ def scrape_and_run(current_cords, current_velocity, added_velocity, subject, tra
 
 # Draws player and runs scrape and run for player
 def driver():
-    global player_location
-    global player_velocity
-    global player_added_velocity
-    global trail
-    global d_color
+    global player_location, player_location, player_added_velocity, trail, d_color, player_hp, player_hbox, enemy_count, dashing, player
 
     # Scrape and run for player
     scrape_and_run(player_location, player_velocity, player_added_velocity, "driver", d_color, 0)
 
-    # Trail (moved to scrape_and_run so it would apply to enemies)
-    #trail_length = pygame.Vector2(0, 0)
-    #if (player_velocity.x * .5 + player_location.y - player_velocity.y * .5) >= 10:
-    #    trail_length.x = player_velocity.x * .25
-    #    trail_length.y = player_velocity.y * .25
-    #else:
-    #    trail_length = player_velocity
-    #if abs(player_velocity.x) + abs(player_velocity.y) >= 5:
-    #    for i in range(trail):
-    #        pygame.draw.circle(screen, "red", ((random.randint(-3, 3) + player_location.x - trail_length.x * i * .5),
-    #                                           (random.randint(-3, 3) + player_location.y - trail_length.y * i * .5)),
-    #                          (28 - i))
-
     # Player draw
-    pygame.draw.circle(screen, "red", player_location, 30)
+    pygame.draw.circle(screen, d_color, player_location, 30)
+
+    player_hbox.center = player_location
+
+    if len(enemies) > 0:
+        for data in enemies.values():
+            if pygame.Rect.colliderect(player_hbox, data["hitbox"]) and dashing == False:
+                player_hp -= 1
+                data["health"] = 0
+                print("You were Hit!")
+            elif pygame.Rect.colliderect(player_hbox, data["hitbox"]) and dashing == True:
+                data["health"] = 0
+                print ("Melee Kill!")
+
+    if player_hp <= 0:
+        player = "dead"
 
 # Spawns Enemies, this could just be a lamda, but those scare me
 def enemy_init():
@@ -227,7 +232,7 @@ def enemy_init():
     enemy_count += 1
 
 def enemy():
-    global enemies, enemy_count, player_location, enemy_ai
+    global enemies, enemy_count, player_location, enemy_ai, kills
     for this_enemy, data in list(enemies.items()):
         cord = data["cord"]
         e_velocity = data["velocity"]
@@ -240,7 +245,7 @@ def enemy():
         hitbox.center = cord
 
         # Makes enemies less "effective", higher b = slower reaction time
-        active = random.randint(1, 10)
+        active = random.randint(1, 20)
 
         evelocity_add = Vector2(0, 0)
         if enemy_ai and active == 1:
@@ -260,10 +265,11 @@ def enemy():
             for i in bullets.values():
                 if pygame.Rect.colliderect(hitbox, i["hitbox"]):
                     health -= 1
-                    print (health)
         if health < 1:
             del enemies[this_enemy]
             enemy_count -= 1
+            pygame.mixer.Sound("ouch_AKigkiF.mp3").play()
+            kills += 1
 
         # Render Enemies
         pygame.draw.circle(screen, color, cord, 30)
@@ -301,7 +307,6 @@ def shoot():
     }
     bullet_count += 1
 
-
 def bullet():
     global bullets, bullet_count
     for this_bullet, data in list(bullets.items()):
@@ -313,6 +318,11 @@ def bullet():
 
         b_add_vel = Vector2(b_velocity.x*bullet_speed,b_velocity.y*bullet_speed)
 
+        # Shoot the Bullets
+        if data["bounces"] < 1:
+            del bullets[this_bullet]
+            bullet_count -= 1
+
         bdata = scrape_and_run(cord, b_velocity, b_add_vel, "bullet", color, bounces)
         data["bounces"] = bdata[2]
 
@@ -322,10 +332,23 @@ def bullet():
         # Render Enemies
         pygame.draw.circle(screen, color, cord, 0)
 
-        # Shoot the Bullets
-        if data["bounces"] < 1:
-            del bullets[this_bullet]
-            bullet_count -= 1
+def wave():
+    global current_wave
+    while current_wave > len(enemies)+1:
+        enemy_init()
+    current_wave += 1
+
+def lvl_up():
+    global max_energy, bullet_bounces, player_hp, shoot_cd_len, energy_regen
+    max_energy += 50
+    bullet_bounces += 1
+    player_hp += 1
+    if shoot_cd_len > 0:
+        shoot_cd_len -= 1
+    energy_regen += 1
+    print ("LEVEL UP!")
+
+
 
 # initialization
 pygame.init()
@@ -337,9 +360,6 @@ running = True
 # Intro Screen
 
 # TBD
-
-#test enemy
-enemy_init()
 
 # Game Loop
 while running:
@@ -354,26 +374,24 @@ while running:
         if event.type == pygame.MOUSEBUTTONUP:
             shooting = False
 
-
     # Reset Velocity Addition
     player_added_velocity = Vector2(0, 0)
 
     # Applies low stability movement debuff
-    if stability_mode:
-        # Sets minimum stability
-        if stability < stability_floor:
-            stability = stability_floor
-        if stability != 0:
-
-            # Formula makes it more likely to trigger at lower stability, and more intense, auto adjusts itself to the stability floor, so no need to re-configure it
-            drunk_trigger = random.randint(0, int(-stability_floor - abs(stability + (stability_floor // stability_impact) - stability_floor / 3))) <= 10 and stability < 0
-
-            # Formula makes it more likely to trigger at lower stability, and more intense, auto adjusts itself to the stability floor, so no need to re-configure it
-            if drunk_trigger:
-                player_added_velocity.y += random.uniform(abs(2 * stability / stability_impact),
-                                                      -abs(2 * stability / stability_impact))
-                player_added_velocity.x += random.uniform(abs(2 * stability / stability_impact),
-                                                      -abs(2 * stability / stability_impact))
+    #if stability_mode:
+    #    # Sets minimum stability
+    #    if stability < stability_floor:
+    #        stability = stability_floor
+    #    if stability != 0:
+    #
+    #        # Formula makes it more likely to trigger at lower stability, and more intense, auto adjusts itself to the stability floor, so no need to re-configure it
+    #        drunk_trigger = random.randint(0, int(-stability_floor - abs(stability + (stability_floor // stability_impact) - stability_floor / 3))) <= 10 and stability < 0
+    #        # Formula makes it more likely to trigger at lower stability, and more intense, auto adjusts itself to the stability floor, so no need to re-configure it
+    #        if drunk_trigger:
+    #            player_added_velocity.y += random.uniform(abs(2 * stability / stability_impact),
+    #                                                  -abs(2 * stability / stability_impact))
+    #            player_added_velocity.x += random.uniform(abs(2 * stability / stability_impact),
+    #                                                  -abs(2 * stability / stability_impact))
 
     # Controls
     keys = pygame.key.get_pressed()
@@ -385,37 +403,40 @@ while running:
         player_added_velocity.x -= move_speed * dt
     if keys[pygame.K_d]:
         player_added_velocity.x += move_speed * dt
+    if keys[pygame.K_LSHIFT] and energy >= 1:
+        player_velocity.x *= 1.1
+        player_velocity.y *= 1.1
+        energy -= 10
+        dashing = True
+    else:
+        dashing = False
 
-    # Dev Hotkeys
+    # Dev Keys
+    if keys[pygame.K_v]:
+        enemy_init()
     if keys[pygame.K_SPACE]:
         player_velocity.x = (1.2 + random.uniform(50, -50))
         player_velocity.y = (1.2 + random.uniform(50, -50))
         stability += 1
-    if keys[pygame.K_e]:
-        player_velocity.x *= 1.4
-        player_velocity.y *= 1.4
-    if keys[pygame.K_v]:
-        enemy_init()
-        for i in enemies:
-            print (enemies)
     # background
     screen.fill("indianred4")
 
     # Shooting/Energy
-    if shooting == True and energy > 0:
-        if shoot_cd >= shoot_cd_len:
-            shoot()
-            energy -= 1
-            shoot_cd = 0
+    if player == "alive":
+        if shooting == True and energy > 0:
+            if shoot_cd >= shoot_cd_len:
+                shoot()
+                energy -= 1
+                shoot_cd = 0
+            else:
+                shoot_cd += 1
+        elif shooting == False and energy < max_energy:
+            energy += energy_regen
+            shoot_cd += 1
+        elif shooting:
+            print("Out of Energy")
         else:
             shoot_cd += 1
-    elif shooting == False and energy < max_energy:
-        energy += energy_regen
-        shoot_cd += 1
-    elif shooting:
-        print("Out of Energy")
-    else:
-        shoot_cd += 1
 
     # The Enemy
     enemy()
@@ -424,7 +445,16 @@ while running:
     bullet()
 
     # Player is You
-    driver()
+    if player == "alive":
+        driver()
+
+    if len(enemies) <= 0:
+        wave()
+
+    if kills >= lvl_threshold:
+        lvl_up()
+        lvl_threshold *= 2
+        kills = 0
 
     # misc
     pygame.display.flip()
