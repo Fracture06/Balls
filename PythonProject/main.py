@@ -1,14 +1,17 @@
 import pygame
 #import pygame_widgets
 import random
-import wx
-from pygame import Vector2, Rect
+from pygame import Vector2, Rect, draw
+
+pygame.init()
+width, height = 1920,1080
+screen = pygame.display.set_mode((width, height))
 
 # To Do
 
 # Rounds of enemies DONE :3
 
-# Upgrades after each round that change stats around
+# Upgrades after each round with upgrade options
 
 # More enemy AI types which can be specified with an augment on enemy_init
 
@@ -18,11 +21,9 @@ from pygame import Vector2, Rect
 
 # Perks EX: Vampire, random friendly bullets, new moves, ect
 
-#Reminder for when you get back, you were working on hitboxes for bullets around line 297
+# Add Wall Classifications
 
 # initialization variables
-outp = wx.App(False)
-width, height = wx.GetDisplaySize()
 dt = 0
 player_location = Vector2(width / 2, height / 2)
 player_velocity = Vector2(0, 0)
@@ -37,7 +38,6 @@ enemies = {
 bullet_count = 0
 bullets = {
 }
-shooting = False
 last_velocity = Vector2(1,1)
 shoot_cd = 0
 enemy_ai = True
@@ -49,6 +49,29 @@ player_hp = max_hp
 player_hbox = Rect(0,0,35,35)
 dashing = False
 kills = 0
+direction = Vector2(1,0)
+overall_speed = 1
+level = 0
+all_mode = False
+level_select = False
+level_option = "null"
+
+buttons = {
+}
+button_count = 0
+
+directions = {
+    "left" : Vector2(-1,0),
+    "right" : Vector2(1,0),
+    "up" : Vector2(0,-1),
+    "down" : Vector2(0,1),
+    "left_up" : Vector2(-1,-1).normalize(),
+    "left_down" : Vector2(-1,1).normalize(),
+    "right_up" : Vector2(1,-1).normalize(),
+    "right_down" : Vector2(1,1,).normalize(),
+    "all" : Vector2(0,0)
+}
+using_energy = False
 
 # Quick Settings
 trail = 23
@@ -65,28 +88,85 @@ max_speed = Vector2(100, 100)  # Applies to all characters that use scrape and r
 d_color = "crimson"
 energy = 400.0
 bullet_bounces = 2
-bullet_speed = .2
-shoot_cd_len = 4
+bullet_speed = .5
+shoot_cd_len = 12
 energy_regen = 2
 max_energy = 400
 enemy_base_health = 1
 pygame.mixer.music.load("Thundersnail.mp3")
 lvl_threshold = 3
+enemy_ai_level = 10
 
 pygame.mixer.music.play(-1,0.0)
 
 # functions
 
+# Button Creater
+def button_init(bx, by, wide, high, press_function, text, remove_on_press = False):
+    global buttons, button_count
+
+    # Color randomizer
+    colors = [
+    "blue",
+    "cadetblue",
+    "aquamarine4",
+    "blue4",
+    "cornflowerblue",
+    "cadetblue2",
+    "cyan4",
+    "darkslategray4",
+    "darkslategrey",
+    "deepskyblue4"
+    ]
+    color = random.choice(colors)
+    button_dim = Rect(bx, by, wide, high)
+
+    buttons[len(buttons)+1] = {
+        "color" : color,
+        "button size" : button_dim,
+        "press function" : press_function,
+        "text" : text,
+        "remove on press" : remove_on_press
+    }
+
+    button_count += 1
+
+# Button Code
+def button():
+    global buttons, mouse
+    for current_button, data in buttons.items():
+        button_size = data["button size"]
+        color = data["color"]
+        press_func = data["press function"]
+        text = data["text"]
+        remove = data["remove on press"]
+
+        if button_size.x <= mouse[0] <= button_size.width+button_size.x and button_size.y <= mouse[1] <= button_size.height+button_size.y:
+            pygame.draw.rect(screen, color, button_size)
+            text_surface = font.render(text, True, "white")
+            screen.blit(text_surface, button_size.topleft)
+            if pygame.mouse.get_pressed()[0]:
+                if press_func == "spawn enemy":
+                    enemy_init("basic")
+                if remove:
+                    del buttons[current_button]
+
+
+        else:
+            pygame.draw.rect(screen, color, button_size)
+            text_surface = font.render(text, True, "white")
+            screen.blit(text_surface, button_size.topleft)
+
 # The UI
 def ui():
     energy_bar = Rect(10,10,energy,40)
-    pygame.draw.rect(screen, "slategray", Rect(0,0,(max_energy+20), 60))
-    pygame.draw.rect(screen, "gray17", Rect(10, 10, max_energy, 40))
-    pygame.draw.rect(screen, "dodgerblue", energy_bar)
+    draw.rect(screen, "slategray", Rect(0,0,(max_energy+20), 60))
+    draw.rect(screen, "gray17", Rect(10, 10, max_energy, 40))
+    draw.rect(screen, "dodgerblue", energy_bar)
     health_bar = Rect(10, 60, player_hp*50, 40)
-    pygame.draw.rect(screen, "slategray", Rect(0, 50, ((max_hp*50) + 20), 60))
-    pygame.draw.rect(screen, "gray17", Rect(10, 60, (max_hp * 50), 40))
-    pygame.draw.rect(screen, "crimson", health_bar)
+    draw.rect(screen, "slategray", Rect(0, 50, ((max_hp*50) + 20), 60))
+    draw.rect(screen, "gray17", Rect(10, 60, (max_hp * 50), 40))
+    draw.rect(screen, "crimson", health_bar)
 
 # Controls Movement, entity agnostic
 def scrape_and_run(current_cords, current_velocity, added_velocity, subject, trail_color, bounces):
@@ -175,7 +255,7 @@ def scrape_and_run(current_cords, current_velocity, added_velocity, subject, tra
         trail_length = current_velocity
     if abs(current_velocity.x) + abs(current_velocity.y) >= 5:
         for f in range(trail):
-            pygame.draw.circle(screen, trail_color, ((random.randint(-3, 3) + current_cords.x - trail_length.x * f * .25),
+            draw.circle(screen, trail_color, ((random.randint(-3, 3) + current_cords.x - trail_length.x * f * .25),
                                                (random.randint(-3, 3) + current_cords.y - trail_length.y * f * .25)),
                                (size - f))
     if subject == "bullet" and hit_wall == True:
@@ -189,13 +269,14 @@ def scrape_and_run(current_cords, current_velocity, added_velocity, subject, tra
 
 # Draws player and runs scrape and run for player
 def driver():
-    global player_location, player_location, player_added_velocity, trail, d_color, player_hp, player_hbox, enemy_count, dashing, player, kills
+    global player_location, player_velocity, player_added_velocity, trail, d_color, player_hp, player_hbox, enemy_count, dashing, player, kills, overall_speed, direction
 
+    overall_speed = abs(player_velocity.x)+abs(player_velocity.y)+1
     # Scrape and run for player
     scrape_and_run(player_location, player_velocity, player_added_velocity, "driver", d_color, 0)
 
     # Player draw
-    pygame.draw.circle(screen, d_color, player_location, 30)
+    draw.circle(screen, d_color, player_location, 30)
 
     player_hbox.center = player_location
 
@@ -214,11 +295,11 @@ def driver():
         player = "dead"
 
 # Spawns Enemies, this could just be a lamda, but those scare me
-def enemy_init():
+def enemy_init(enemy_type):
     global width, height, enemies, enemy_count
 
     # Spawnable Range
-    elocation=Vector2(random.uniform(width*.99,width*.01),random.uniform(height*.99,height*.01))
+    elocation=Vector2(random.uniform(width*.8,width*.01),random.uniform(height*.99,height*.01))
 
     # Color randomizer
     colors = [
@@ -248,7 +329,7 @@ def enemy_init():
 
 # Runs the enemies
 def enemy():
-    global enemies, enemy_count, player_location, enemy_ai, kills
+    global enemies, enemy_count, player_location, enemy_ai, kills, enemy_ai_level
     for this_enemy, data in list(enemies.items()):
         cord = data["cord"]
         e_velocity = data["velocity"]
@@ -261,7 +342,7 @@ def enemy():
         hitbox.center = cord
 
         # Makes enemies less "effective", higher b = slower reaction time
-        active = random.randint(1, 7)
+        active = random.randint(1, int(enemy_ai_level)*2)
 
         evelocity_add = Vector2(0, 0)
         if enemy_ai and active == 1:
@@ -284,22 +365,29 @@ def enemy():
         if health < 1:
             del enemies[this_enemy]
             enemy_count -= 1
-            pygame.mixer.Sound("ouch_AKigkiF.mp3").play()
+            pygame.mixer.Sound("ouch_AKigkiF.mp3").play(0,-1,0)
             kills += 1
 
         # Render Enemies
-        pygame.draw.circle(screen, color, cord, 30)
+        draw.circle(screen, color, cord, 30)
 
 # Spawns Bullets
-def shoot():
-    global bullets, bullet_count, player_location, player_velocity, bullet_bounces, last_velocity, bullet_speed
+def shoot(b_direction):
+    global bullets, bullet_count, player_location, player_velocity
+    global bullet_bounces, last_velocity, bullet_speed, all_mode
+    global energy, shoot_cd, shoot_cd_len, directions, using_energy
+    if player == "alive":
+        using_energy = True
+        if energy > 0 and b_direction != "all":
+            if shoot_cd >= shoot_cd_len:
+                blocation=player_location.copy()
+                bvelocity = directions[b_direction].copy()
+                if not all_mode:
+                    shoot_cd = 0
+                    energy -= 20
 
-    # Spawnable Range
-    blocation=player_location.copy()
-    bvelocity=last_velocity.copy()
-
-    # Color randomizer
-    colors = [
+                # Color randomizer
+                colors = [
         "blue",
         "cadetblue",
         "aquamarine4",
@@ -311,18 +399,33 @@ def shoot():
         "darkslategrey",
         "deepskyblue4"
     ]
-    color = random.choice(colors)
+                color = random.choice(colors)
 
-    hitbox = Rect(0, 0, 15, 15)
+                hitbox = Rect(0, 0, 15, 15)
 
-    bullets[bullet_count] = {
+                bullets[bullet_count] = {
         "cord" : blocation,
         "velocity" : bvelocity,
         "color" : color,
         "bounces" : bullet_bounces,
         "hitbox" : hitbox
     }
-    bullet_count += 1
+                bullet_count += 1
+                pygame.mixer.Sound("pew-pew-lame-sound-effect.mp3").play(0,-1,0)
+        elif b_direction == "all" and energy > 0 :
+            all_mode = True
+            shoot("left")
+            shoot("right")
+            shoot("up")
+            shoot("down")
+            shoot("left_down")
+            shoot("right_up")
+            shoot("left_up")
+            shoot("right_down")
+            all_mode = False
+            #renergy -= 40
+        else:
+            print("Out of Energy")
 
 # Runs the Bullets
 def bullet():
@@ -348,40 +451,64 @@ def bullet():
         hitbox.center = cord
 
         # Render Enemies
-        pygame.draw.circle(screen, color, cord, 0)
+        draw.circle(screen, color, cord, 10)
 
 # Spawns Waves of Enemies
 def wave():
-    global current_wave
+    global current_wave, enemy_ai_level
     while current_wave > len(enemies)+1:
-        enemy_init()
+        enemy_init("basic")
     current_wave += 1
+    if enemy_ai_level > 3:
+        enemy_ai_level -= 1
 
 # Levels you Up
 def lvl_up():
-    global max_energy, bullet_bounces, player_hp, shoot_cd_len, energy_regen, max_hp
+    global max_energy, bullet_bounces, player_hp, shoot_cd_len, energy_regen, max_hp, bullet_speed, level
     max_energy += 50
-    bullet_bounces += 1
+    if bullet_bounces < 3:
+        bullet_bounces += 1
     max_hp += 1
     player_hp += 1
     if shoot_cd_len > 0:
         shoot_cd_len -= 1
     energy_regen += 1
+    bullet_speed += .1
     print ("LEVEL UP!")
+    level += 1
+
+def level_options():
+    global level_option
+    level_option = "g"
+
+def dir_shift():
+    global directions
+    for a,b in list(directions.items()):
+        g = b.rotate(5)
+        directions[a] = g
 
 # initialization
-pygame.init()
+
 pygame.display.set_caption('Driver')
-screen = pygame.display.set_mode((width, height))
+
 clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 40)
 running = True
 
 # Intro Screen
 
 # TBD
 
+#button_init(550,550,50,50, "spawn enemy", "spawn enemy", True)
+
+# The following code was found on stackoverflow
+
 # Game Loop
 while running:
+
+    # Gets Mouse
+    mouse = pygame.mouse.get_pos()
+
     # poll for events
 
     # pygame.QUIT event means the user clicked X to close your window
@@ -389,12 +516,24 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
-            shooting = True
-        if event.type == pygame.MOUSEBUTTONUP:
-            shooting = False
+            if width / 2 <= mouse[0] <= width / 2 + 140 and height / 2 <= mouse[1] <= height / 2 + 40:
+                print ("Pressed")
+
+                #NOTE TO SELF: MAKE A BUTTON INTI FUNCTION, AND CHECK THE LIST OF BUTTONS FOR CLICKS HERE
+
+
+        #if event.type == pygame.MOUSEBUTTONDOWN:
+        #    shooting = True
+        #if event.type == pygame.MOUSEBUTTONUP:
+        #    shooting = False
 
     # Reset Velocity Addition
     player_added_velocity = Vector2(0, 0)
+
+    # background
+    screen.fill("indianred4")
+
+    using_energy = False
 
     # Applies low stability movement debuff
     #if stability_mode:
@@ -412,9 +551,13 @@ while running:
     #            player_added_velocity.x += random.uniform(abs(2 * stability / stability_impact),
     #                                                  -abs(2 * stability / stability_impact))
 
-    #prevents post death hp gain error
+    # Button
+    button()
+
+    #prevents post death hp/energy gain error
     if player == "dead":
         player_hp = 0
+        energy = 0
 
     # Controls
     keys = pygame.key.get_pressed()
@@ -429,57 +572,82 @@ while running:
     if keys[pygame.K_LSHIFT] and energy >= 1:
         player_velocity.x *= 1.1
         player_velocity.y *= 1.1
-        energy -= 10
+        energy -= 15
         dashing = True
+        using_energy = True
     else:
         dashing = False
+    if keys[pygame.K_r]:
+        dir_shift()
+
+    # Shooting Logic
+    if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
+        shoot("left_up")
+    elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
+        shoot("right_up")
+    elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
+        shoot("right_down")
+    elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
+        shoot("left_down")
+    elif keys[pygame.K_LEFT]:
+        shoot("left")
+    elif keys[pygame.K_RIGHT]:
+        shoot("right")
+    elif keys[pygame.K_UP]:
+        shoot("up")
+    elif keys[pygame.K_DOWN]:
+        shoot("down")
 
     # Dev Keys
     if keys[pygame.K_v]:
-        enemy_init()
+        enemy_init("basic")
     if keys[pygame.K_SPACE]:
-        player_velocity.x = (1.2 + random.uniform(50, -50))
-        player_velocity.y = (1.2 + random.uniform(50, -50))
-        stability += 1
-    # background
-    screen.fill("indianred4")
+        shoot("all")
 
-    # Shooting/Energy
-    if player == "alive":
-        if shooting == True and energy > 0:
-            if shoot_cd >= shoot_cd_len:
-                shoot()
-                energy -= 1
-                shoot_cd = 0
-            else:
-                shoot_cd += 1
-        elif shooting == False and energy < max_energy:
-            energy += energy_regen
-            shoot_cd += 1
-        elif shooting:
-            print("Out of Energy")
-        else:
-            shoot_cd += 1
+
+
+    # Shooting/Energy Moved to Shoot Function
+    #if player == "alive":
+    #    if shooting == True and energy > 0:
+    #        if shoot_cd >= shoot_cd_len:
+    #            shoot(direction)
+    #            energy -= 15
+    #            shoot_cd = 0
+    #        else:
+    #            shoot_cd += 1
+    #    elif shooting == False and energy < max_energy:
+    #        energy += energy_regen
+    #        shoot_cd += 1
+    #    elif shooting:
+    #        print("Out of Energy")
+    #    else:
+    #        shoot_cd += 1
 
     # The Enemy
     enemy()
-
-    # The Bullets
-    bullet()
 
     # Player is You
     if player == "alive":
         driver()
 
+    # The Bullets
+    bullet()
+
     if len(enemies) <= 0:
         wave()
 
-    if kills >= lvl_threshold:
+    if kills >= lvl_threshold-level:
         lvl_up()
         lvl_threshold *= 2
         kills = 0
 
     ui()
+
+    button()
+
+    if energy < max_energy and using_energy == False:
+        energy += energy_regen
+    shoot_cd += 1
 
     # misc
     pygame.display.flip()
