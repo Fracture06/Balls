@@ -23,14 +23,14 @@ multi_shot = 1
 player_damaged = False
 shields = False
 shield_chance = 10
-vamperism_proc_chance = 0
+vampirism_proc_chance = 0
 dabloons = 0
 omni_discount = 0
 dash_discount = 0
 health_regen = 0
 damage_buff = 0
 omnishot = False
-vamperism = False
+vampirism = False
 fired_bullets = 0
 player_location = Vector2(width / 2, height / 2)
 player_velocity = Vector2(0, 0)
@@ -66,7 +66,7 @@ level_option = "null"
 game_state = "menu"
 current_upgrades = []
 og_pool = ["Super Speed", "Bouncy Bullets", "Bullet Velocity",
-                          "Omni Shot", "Fire Rate", "Dash", "Vamperism",
+                          "Omni Shot", "Fire Rate", "Dash", "Vampirism",
                           "Bullet Pierce", "Bonus Options!", "Energize",
                           "More Damage", "Shields", "Super Vitality", "Multishot"]
 
@@ -171,6 +171,13 @@ def button():
         remove = data["remove on press"]
         clear = data["clear on press"]
 
+        if text == "Dash":
+            text += "\n\n    Press\n   Shift"
+        if text == "Omni Shot":
+            text += "\n\n    Press\n   Space"
+        if text == "Vampiric":
+            text += "\n\nLifesteal"
+
         if button_size.x <= mouse[0] <= button_size.width+button_size.x and button_size.y <= mouse[1] <= button_size.height+button_size.y:
             pygame.draw.rect(screen, color, button_size, 0, 10)
             text_surface = font.render(text, True, "white")
@@ -190,7 +197,7 @@ def button():
                 elif press_func in total_level_up_options:
                     level_up_options(press_func)
                 elif press_func == "Start Dev Mode":
-                    global max_hp, shields, player_hp, max_energy, vamperism_proc_chance, energy, move_speed, bullet_bounces, shoot_cd_len, energy_regen, bullet_speed, omnishot, can_dash, vamperism, shield_chance, dash_discount, omni_discount
+                    global max_hp, shields, player_hp, max_energy, vampirism_proc_chance, energy, move_speed, bullet_bounces, shoot_cd_len, energy_regen, bullet_speed, omnishot, can_dash, vampirism, shield_chance, dash_discount, omni_discount
                     game_state = "game"
                     max_hp = 1000
                     player_hp = max_hp
@@ -203,12 +210,12 @@ def button():
                     bullet_speed = 2.5
                     omnishot = True
                     can_dash = True
-                    vamperism = True
+                    vampirism = True
                     shields = True
                     shield_chance = 2
                     dash_discount = 4
                     omni_discount = 39
-                    vamperism_proc_chance = 9
+                    vampirism_proc_chance = 9
 
                 else:
                     print("Unknown Button Error, skipping...")
@@ -240,7 +247,7 @@ def ui():
     # Show Perks, I converted these to pixel art, that's transformative, I can use these :)
     if omnishot:
         screen.blit(omni_logo, (10,120))
-    if vamperism:
+    if vampirism:
         screen.blit(vamp_logo, (100, 120))
     if can_dash:
         screen.blit(dash_logo, (150, 120))
@@ -491,7 +498,7 @@ def enemy():
             enemy_count -= 1
             e_hurt.play(0,-1,0)
             kills += 1
-            if vamperism and (random.randint(1,10-vamperism_proc_chance)) == 1:
+            if vampirism and (random.randint(1,10-vampirism_proc_chance)) == 1:
                 player_hp += 100
                 print ("Get Vamped")
                 if player_hp > max_hp:
@@ -673,15 +680,15 @@ def level_up_options(selected_option):
                 total_level_up_options.remove("Dash")
                 print("Removed Dash from Pool")
         can_dash = True
-    elif selected_option == "Vamperism":
-        global vamperism, vamperism_proc_chance
-        if vamperism and vamperism_proc_chance < 9:
-            vamperism_proc_chance += 1
-        if vamperism_proc_chance >= 9:
-            if "Vamperism" in total_level_up_options:
-                total_level_up_options.remove("Vamperism")
-                print("Removed Vamperism from Pool")
-        vamperism = True
+    elif selected_option == "Vampirism":
+        global vampirism, vampirism_proc_chance
+        if vampirism and vampirism_proc_chance < 9:
+            vampirism_proc_chance += 1
+        if vampirism_proc_chance >= 9:
+            if "Vampirism" in total_level_up_options:
+                total_level_up_options.remove("Vampirism")
+                print("Removed Vampirism from Pool")
+        vampirism = True
     elif selected_option == "Bullet Pierce":
         global bullet_pierce
         bullet_pierce += 1
@@ -733,8 +740,8 @@ def level_up_options(selected_option):
 def restart():
     global max_hp, bg_color, player_velocity, enemy_base_health, upgrade_option_amount, shields, shield_chance, \
         health_regen, shoot_cd, multi_shot, dabloons, player_hp, max_energy, energy, player, current_wave, kills, level, \
-        lvl_threshold, enemy_ai_level, game_state, dt, vamperism_proc_chance, omni_discount, dash_discount, damage_buff, \
-        omnishot, vamperism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, \
+        lvl_threshold, enemy_ai_level, game_state, dt, vampirism_proc_chance, omni_discount, dash_discount, damage_buff, \
+        omnishot, vampirism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, \
         dashing, all_mode, level_select, can_dash, using_energy, player_damaged, shoot_cd_len, easy, total_level_up_options, \
         bullet_pierce, energy_regen, bullet_bounces, bullet_speed
 
@@ -759,12 +766,12 @@ def restart():
     lvl_threshold = 3
     enemy_ai_level = 10
     game_state = "game"
-    vamperism_proc_chance = 0
+    vampirism_proc_chance = 0
     omni_discount = 0
     dash_discount = 0
     damage_buff = 0
     omnishot = False
-    vamperism = False
+    vampirism = False
     player_location = Vector2(width / 2, height / 2)
     player_velocity = Vector2(0,0)
     # stability = 100
