@@ -124,6 +124,12 @@ lvl_threshold = 3
 enemy_ai_level = 10
 bullet_pierce = 1
 upgrade_option_amount = 3
+easy = False
+
+# Reserve Death Sound Channel (Sound wasn't playing if you shot at moment of death)
+pygame.mixer.set_reserved(1)
+death_channel = pygame.mixer.Channel(0)
+death_sound = pygame.mixer.Sound("mortis_lBkstHG.mp3")
 
 pygame.mixer.music.play(-1,0.0)
 
@@ -168,6 +174,10 @@ def button():
                     enemy_init("basic")
                 elif press_func == "start":
                     game_state = "game"
+                elif press_func == "Start Easy Mode":
+                    global easy
+                    game_state = "game"
+                    easy = True
                 elif press_func in total_level_up_options:
                     level_up_options(press_func)
                 elif press_func == "Start Dev Mode":
@@ -573,7 +583,7 @@ def bullet():
 
 # Spawns Waves of Enemies
 def wave():
-    global current_wave, enemy_ai_level
+    global current_wave, enemy_ai_level, enemy_base_health
     while current_wave > len(enemies):
         for i in range(current_wave):
             type = random.randint(1,3)
@@ -586,6 +596,8 @@ def wave():
     current_wave += 1
     if enemy_ai_level > 3:
         enemy_ai_level -= 1
+    if current_wave % 5 == 0 and not easy:
+        enemy_base_health = current_wave/5 + 1
 
 # Levels you Up Replaced by the level card system
 #def lvl_up():
@@ -711,12 +723,21 @@ def level_up_options(selected_option):
     game_state = "game"
 
 def restart():
-    global max_hp, bg_color, shields, shield_chance, health_regen, shoot_cd, multi_shot, dabloons, player_hp, max_energy, energy, player, current_wave, kills, level, lvl_threshold, enemy_ai_level, game_state, dt, vamperism_proc_chance, omni_discount, dash_discount, damage_buff, omnishot, vamperism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, dashing, all_mode, level_select, can_dash, using_energy
+    global max_hp, bg_color, player_velocity, enemy_base_health, upgrade_option_amount, shields, shield_chance, \
+        health_regen, shoot_cd, multi_shot, dabloons, player_hp, max_energy, energy, player, current_wave, kills, level, \
+        lvl_threshold, enemy_ai_level, game_state, dt, vamperism_proc_chance, omni_discount, dash_discount, damage_buff, \
+        omnishot, vamperism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, \
+        dashing, all_mode, level_select, can_dash, using_energy, player_damaged, shoot_cd_len, easy
+
     max_hp = 400
+    player_damaged = False
     bg_color = "#91A8D0"
+    enemy_base_health = 1
+    upgrade_option_amount = 3
     pygame.mixer.music.load("Thundersnail.mp3")
     pygame.mixer.music.play(-1, 0.0)
     shoot_cd = 0
+    shoot_cd_len = 12
     dabloons = 0
     player_hp = max_hp
     max_energy = 400
@@ -735,6 +756,7 @@ def restart():
     omnishot = False
     vamperism = False
     player_location = Vector2(width / 2, height / 2)
+    player_velocity = Vector2(0,0)
     # stability = 100
     move_speed = base_move_speed
     enemy_count = 0
@@ -752,6 +774,7 @@ def restart():
     shield_chance = 10
     shields = False
     health_regen = 0
+    easy = False
 
 # initialization
 
@@ -767,6 +790,7 @@ running = True
 
 button_init(width/2.5,height/4,350,50, "start", "start", True, True)
 button_init(width/2.5,height/3.2,350,50, "Start Dev Mode", "Start Dev Mode", True, True)
+button_init(width/2.5,height/2.66,350,50, "Start Easy Mode", "Start Easy Mode", True, True)
 
 # Game Loop
 while running:
@@ -910,7 +934,8 @@ while running:
                 if event.type == pygame.QUIT:
                     running = False
             game_state = "MORTIS"
-            pygame.mixer.Sound("mortis_lBkstHG.mp3").play(0, -1, 0)
+            #pygame.mixer.Sound("mortis_lBkstHG.mp3").play(0, -1, 0)
+            death_channel.play(death_sound)
             pygame.mixer.music.stop()
 
         # The Bullets
@@ -921,13 +946,15 @@ while running:
 
         if kills >= lvl_threshold-level:
             #lvl_up()
-            lvl_threshold += level + 3
+            lvl_threshold += level*1.2 + 3
             kills = 0
             player_hp = max_hp
             game_state = "level_up"
             player_damaged = False
             d_color = base_color
             player = "alive"
+            if easy:
+                lvl_threshold -= 3
 
         ui()
 
@@ -943,6 +970,8 @@ while running:
         button()
 
     if game_state == "MORTIS":
+        player_hp = 0
+        energy = 0
         draw.circle(screen, "white", player_location, 30)
         text_surface = font.render("M O R T I S", True, "white")
         screen.blit(text_surface, (width / 2 - 100, height / 2 - 20))
@@ -954,12 +983,17 @@ while running:
             # Reset Game
 
             restart()
+            button_init(width / 2.5, height / 4, 350, 50, "start", "start", True, True)
+            button_init(width / 2.5, height / 3.2, 350, 50, "Start Dev Mode", "Start Dev Mode", True, True)
+            button_init(width / 2.5, height / 2.66, 350, 50, "Start Easy Mode", "Start Easy Mode", True, True)
+            game_state = "menu"
         ui()
         bullet()
         enemy()
-        bullet()
     # misc
     pygame.display.flip()
     dt = clock.tick(60) / 1000
 
 print("The Game has ended")
+
+# Holy Spaghetti Code, This is a Mess
