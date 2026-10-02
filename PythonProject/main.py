@@ -11,8 +11,13 @@ vamp_logo = pygame.image.load("pixel_art_small_vamp.png")
 dash_logo = pygame.image.load("pixel_art_small_dash.png")
 shield_logo = pygame.image.load("pixel_art_small_shield.png")
 
+pew = pygame.mixer.Sound("whoosh-wind.mp3")
+e_hurt = pygame.mixer.Sound("ouch_AKigkiF.mp3")
+level_sound = pygame.mixer.Sound("geometry-dash-level-selected.mp3")
+
 # initialization variables
 dt = 0
+total_enemies = 0
 bg_color = "#91A8D0"
 multi_shot = 1
 player_damaged = False
@@ -31,7 +36,7 @@ player_location = Vector2(width / 2, height / 2)
 player_velocity = Vector2(0, 0)
 player_added_velocity = Vector2(0, 0)
 #stability = 100
-move_speed = 40
+move_speed = 30
 base_move_speed = move_speed
 playable_region = Rect(0, 0, width, height)
 enemy_count = 0
@@ -60,10 +65,12 @@ can_dash = False
 level_option = "null"
 game_state = "menu"
 current_upgrades = []
-total_level_up_options = ["Super Speed", "Bouncy Bullets", "Bullet Velocity",
+og_pool = ["Super Speed", "Bouncy Bullets", "Bullet Velocity",
                           "Omni Shot", "Fire Rate", "Dash", "Vamperism",
                           "Bullet Pierce", "Bonus Options!", "Energize",
                           "More Damage", "Shields", "Super Vitality", "Multishot"]
+
+total_level_up_options = og_pool.copy()
 buttons = {
 }
 button_count = 0
@@ -178,6 +185,8 @@ def button():
                     global easy
                     game_state = "game"
                     easy = True
+                    level_up_options("Energize")
+                    level_up_options("Super Vitality")
                 elif press_func in total_level_up_options:
                     level_up_options(press_func)
                 elif press_func == "Start Dev Mode":
@@ -383,7 +392,7 @@ def driver():
 
 # Spawns Enemies, this could just be a lamda, but those scare me
 def enemy_init(enemy_type= "N/A"):
-    global width, height, enemies, enemy_count
+    global width, height, enemies, enemy_count, total_enemies
 
     # Spawnable Range
     elocation=Vector2(random.uniform(width*.8,width*.01),random.uniform(height*.99,height*.01))
@@ -407,7 +416,7 @@ def enemy_init(enemy_type= "N/A"):
         health = enemy_base_health
         h_box = Rect(0,0,35,35)
 
-    enemies[enemy_count] = {
+    enemies[total_enemies] = {
         "cord" : elocation,
         "velocity" : Vector2(0,0),
         "color" : color,
@@ -417,6 +426,7 @@ def enemy_init(enemy_type= "N/A"):
         "damaged" : False
     }
     enemy_count += 1
+    total_enemies += 1
 
 # Runs the enemies
 def enemy():
@@ -432,10 +442,10 @@ def enemy():
         #enemy AI
         hitbox.center = cord
         # Makes enemies less "effective", higher b = slower reaction time
-        active = random.randint(1, int(enemy_ai_level)*2)
         hold = enemy_ai_level
         if type == "Super Speed Snorkler":
-            enemy_ai_level = 1
+            enemy_ai_level = 2
+        active = random.randint(1, int(enemy_ai_level)*2)
         evelocity_add = Vector2(0, 0)
         if enemy_ai and active == 1:
             evelocity_add = Vector2(0,0)
@@ -479,7 +489,7 @@ def enemy():
         if health < 1:
             del enemies[this_enemy]
             enemy_count -= 1
-            pygame.mixer.Sound("ouch_AKigkiF.mp3").play(0,-1,0)
+            e_hurt.play(0,-1,0)
             kills += 1
             if vamperism and (random.randint(1,10-vamperism_proc_chance)) == 1:
                 player_hp += 100
@@ -537,8 +547,8 @@ def shoot(b_direction):
                     }
                     bullet_count += 1
                     fired_bullets += 1
-                pygame.mixer.Sound("pew-pew-lame-sound-effect.mp3").play(0,-1,0)
-        elif b_direction == "all" and energy > 0 :
+                pew.play(0,-1,0)
+        elif b_direction == "all" and energy > 0 and shoot_cd >= shoot_cd_len:
             all_mode = True
             shoot("left")
             shoot("right")
@@ -568,9 +578,11 @@ def bullet():
         if data["bounces"] < 1:
             del bullets[this_bullet]
             bullet_count -= 1
+            continue
         elif data["pierce"] < 1:
             del bullets[this_bullet]
             bullet_count -= 1
+            continue
 
         bdata = scrape_and_run(cord, b_velocity, b_add_vel, "bullet", color, bounces, "circle", 10)
         data["bounces"] = bdata[2]
@@ -647,7 +659,7 @@ def level_up_options(selected_option):
         if omnishot and omni_discount < 39:
             omni_discount += 1
         omnishot = True
-        if omni_discount >= 40:
+        if omni_discount >= 39:
             if "Omni Shot" in total_level_up_options:
                 total_level_up_options.remove("Omni Shot")
                 print("Removed Omni Shot from Pool")
@@ -727,10 +739,12 @@ def restart():
         health_regen, shoot_cd, multi_shot, dabloons, player_hp, max_energy, energy, player, current_wave, kills, level, \
         lvl_threshold, enemy_ai_level, game_state, dt, vamperism_proc_chance, omni_discount, dash_discount, damage_buff, \
         omnishot, vamperism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, \
-        dashing, all_mode, level_select, can_dash, using_energy, player_damaged, shoot_cd_len, easy
+        dashing, all_mode, level_select, can_dash, using_energy, player_damaged, shoot_cd_len, easy, total_level_up_options, \
+        bullet_pierce, energy_regen, bullet_bounces, bullet_speed
 
     max_hp = 400
     player_damaged = False
+    death_channel.stop()
     bg_color = "#91A8D0"
     enemy_base_health = 1
     upgrade_option_amount = 3
@@ -775,6 +789,11 @@ def restart():
     shields = False
     health_regen = 0
     easy = False
+    bullet_bounces = 1
+    bullet_speed = .5
+    energy_regen = 2
+    bullet_pierce = 1
+    total_level_up_options = og_pool.copy()
 
 # initialization
 
@@ -946,19 +965,19 @@ while running:
 
         if kills >= lvl_threshold-level:
             #lvl_up()
-            lvl_threshold += level*1.2 + 3
+            lvl_threshold += level*1.3 + 3
+            level += 1
             kills = 0
             player_hp = max_hp
             game_state = "level_up"
             player_damaged = False
             d_color = base_color
             player = "alive"
+            level_sound.play(0,-1,0)
             if easy:
-                lvl_threshold -= 3
+                lvl_threshold -= 1
 
         ui()
-
-        button()
 
         if energy < max_energy and using_energy == False:
             energy += energy_regen
