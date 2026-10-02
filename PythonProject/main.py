@@ -458,7 +458,7 @@ def enemy():
             else:
                 evelocity_add.y -= move_speed*.05
             if type == "Super Speed Snorkler":
-                evelocity_add *= 2
+                evelocity_add *= 1.5
 
         if type == "Tank":
             shape = "circle"
@@ -608,8 +608,8 @@ def wave():
     current_wave += 1
     if enemy_ai_level > 3:
         enemy_ai_level -= 1
-    if current_wave % 5 == 0 and not easy:
-        enemy_base_health = current_wave/5 + 1
+    if current_wave % 7 == 0 and not easy:
+        enemy_base_health = current_wave/7 + 1
 
 # Levels you Up Replaced by the level card system
 #def lvl_up():
