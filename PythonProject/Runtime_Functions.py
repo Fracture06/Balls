@@ -1,19 +1,10 @@
-import pygame
-#import pygame_widgets
-import random
+import pygame, random
 from pygame import Vector2, Rect, draw, Color
-
-pygame.init()
-width, height = 1920,1080
-screen = pygame.display.set_mode((width, height))
-omni_logo = pygame.image.load("pixel_art_small.png")
-vamp_logo = pygame.image.load("pixel_art_small_vamp.png")
-dash_logo = pygame.image.load("pixel_art_small_dash.png")
-shield_logo = pygame.image.load("pixel_art_small_shield.png")
+import main
 
 # initialization variables
+width, height = 1920,1080
 dt = 0
-bg_color = "#91A8D0"
 multi_shot = 1
 player_damaged = False
 shields = False
@@ -93,22 +84,15 @@ bullet_colors = [
     Color("#FA90A3"),
     Color("#FDACA1")
 ]
-button_colors = [
-    Color("#183C91"),
-    Color("#095FFF"),
-    Color("#3A7ABE")
-]
 trail = 40
 min_speed = Vector2(.1, .1)  # Applies to all characters that use scrape and run
 max_speed = Vector2(100, 100)  # Applies to all characters that use scrape and run
-
 # Both Stability mode and Gravity have been removed for being "stupid and boring"
 
 #stability_mode = False
 #stability_impact = 90 # changes how much stability affects gameplay, further from 0 = less impact
 #stability_floor = -300
 #gravity_factor = 1 Abandoned by its God (me)
-
 d_color = Color("#F08080")
 base_color = d_color
 energy = 400.0
@@ -124,8 +108,11 @@ lvl_threshold = 3
 enemy_ai_level = 10
 bullet_pierce = 1
 upgrade_option_amount = 3
+mouse = pygame.mouse.get_pos()
 
-pygame.mixer.music.play(-1,0.0)
+# functions
+
+pygame.display.set_caption('Balls: Game of the Year Edition!')
 
 # functions
 
@@ -133,7 +120,20 @@ pygame.mixer.music.play(-1,0.0)
 def button_init(bx, by, wide, high, press_function, text = "Place holder", remove_on_press = False, clear_on_press = False):
     global buttons, button_count
 
-    color = random.choice(button_colors)
+    # Color randomizer
+    colors = [
+    "blue",
+    "cadetblue",
+    "aquamarine4",
+    "blue4",
+    "cornflowerblue",
+    "cadetblue2",
+    "cyan4",
+    "darkslategray4",
+    "darkslategrey",
+    "deepskyblue4"
+    ]
+    color = random.choice(colors)
     button_dim = Rect(bx, by, wide, high)
 
     buttons[len(buttons)] = {
@@ -159,10 +159,9 @@ def button():
         clear = data["clear on press"]
 
         if button_size.x <= mouse[0] <= button_size.width+button_size.x and button_size.y <= mouse[1] <= button_size.height+button_size.y:
-            pygame.draw.rect(screen, color, button_size, 0, 10)
+            pygame.draw.rect(screen, color, button_size)
             text_surface = font.render(text, True, "white")
-            text_size = text_surface.get_rect(center=button_size.center)
-            screen.blit(text_surface, text_size.topleft)
+            screen.blit(text_surface, button_size.topleft)
             if pygame.mouse.get_pressed()[0]:
                 if press_func == "spawn enemy":
                     enemy_init("basic")
@@ -171,7 +170,7 @@ def button():
                 elif press_func in total_level_up_options:
                     level_up_options(press_func)
                 elif press_func == "Start Dev Mode":
-                    global max_hp, shields, player_hp, max_energy, vamperism_proc_chance, energy, move_speed, bullet_bounces, shoot_cd_len, energy_regen, bullet_speed, omnishot, can_dash, vamperism, shield_chance, dash_discount, omni_discount
+                    global max_hp, player_hp, max_energy, energy, move_speed, bullet_bounces, shoot_cd_len, energy_regen, bullet_speed, omnishot, can_dash, vamperism
                     game_state = "game"
                     max_hp = 1000
                     player_hp = max_hp
@@ -180,17 +179,11 @@ def button():
                     move_speed = 80
                     bullet_bounces = 5
                     shoot_cd_len = 1
-                    energy_regen = 1000
-                    bullet_speed = 2.5
+                    energy_regen = 10
+                    bullet_speed = 1.5
                     omnishot = True
                     can_dash = True
                     vamperism = True
-                    shields = True
-                    shield_chance = 2
-                    dash_discount = 4
-                    omni_discount = 39
-                    vamperism_proc_chance = 9
-
                 else:
                     print("Unknown Button Error, skipping...")
                 if remove and not clear:
@@ -198,10 +191,9 @@ def button():
                 elif clear:
                     buttons.clear()
         else:
-            pygame.draw.rect(screen, (color.lerp(Color("black"), .15)), button_size, 0, 10)
+            pygame.draw.rect(screen, color, button_size)
             text_surface = font.render(text, True, "white")
-            text_size = text_surface.get_rect(center=button_size.center)
-            screen.blit(text_surface, text_size)
+            screen.blit(text_surface, button_size.topleft)
 
 # The UI
 def ui():
@@ -214,19 +206,9 @@ def ui():
     draw.rect(screen, "gray17", Rect(10, 60, max_hp, 40))
     draw.rect(screen, "crimson", health_bar)
 
-    draw.rect(screen, "slategray", Rect(width-200, 10, 190, 60))
+    draw.rect(screen, "slategray", Rect(width-200, 0, 200, 60))
     Wave_counter = font.render(f"Wave {current_wave-1}", True, "white")
-    screen.blit(Wave_counter, (width - 150, 25))
-
-    # Show Perks, I converted these to pixel art, that's transformative, I can use these :)
-    if omnishot:
-        screen.blit(omni_logo, (10,120))
-    if vamperism:
-        screen.blit(vamp_logo, (100, 120))
-    if can_dash:
-        screen.blit(dash_logo, (150, 120))
-    if shields:
-        screen.blit(shield_logo, (225, 123))
+    screen.blit(Wave_counter, (width - 190, 10))
 
 # Controls Movement, entity agnostic
 def scrape_and_run(current_cords, current_velocity, added_velocity, subject, trail_color, bounces, shape = "circle", size = 28):
@@ -352,7 +334,6 @@ def driver():
                     data["health"] = 0
                     player_damaged = True
                     print("You were Hit!")
-                    kills -= 1
                 else:
                     if random.randint(1, shield_chance) == 1:
                         data["health"] = 0
@@ -362,7 +343,6 @@ def driver():
                         data["health"] = 0
                         player_damaged = True
                         print("You were Hit!")
-                        kills -= 1
             elif pygame.Rect.colliderect(player_hbox, data["hitbox"]) and dashing == True:
                 data["health"] = 0
                 print ("Melee Kill!")
@@ -440,9 +420,9 @@ def enemy():
             if type == "Super Speed Snorkler":
                 evelocity_add *= 2
 
-        if type == "Tank":
-            shape = "circle"
-            size = 28
+        if type == "tank":
+            shape = "rect"
+            size = 609
         elif type == "basic":
             shape = "circle"
             size = 28
@@ -472,7 +452,7 @@ def enemy():
             pygame.mixer.Sound("ouch_AKigkiF.mp3").play(0,-1,0)
             kills += 1
             if vamperism and (random.randint(1,10-vamperism_proc_chance)) == 1:
-                player_hp += 100
+                player_hp += 1
                 print ("Get Vamped")
                 if player_hp > max_hp:
                     player_hp = max_hp
@@ -541,6 +521,8 @@ def shoot(b_direction):
             all_mode = False
             energy -= 40 - omni_discount
             shoot_cd = 0
+        else:
+            print("Out of Energy")
 
 # Runs the Bullets
 def bullet():
@@ -612,7 +594,7 @@ def level_button_array():
         button_init(width/upgrade_option_amount + num*310-500, 300, 250, 500, option, option, True, True)
 
 def level_up_options(selected_option):
-    global level_option, game_state, total_level_up_options
+    global level_option, game_state
     if selected_option == "Super Speed":
         global move_speed
         move_speed += 5
@@ -623,10 +605,6 @@ def level_up_options(selected_option):
         global shoot_cd_len
         if shoot_cd_len > 0:
             shoot_cd_len -= 1
-        if shoot_cd_len <= 0:
-            if "Fire Rate" in total_level_up_options:
-                total_level_up_options.remove("Fire Rate")
-                print("Removed Fire Rate from Pool")
     elif selected_option == "Bullet Velocity":
         global bullet_speed
         bullet_speed += .1
@@ -635,28 +613,15 @@ def level_up_options(selected_option):
         if omnishot and omni_discount < 39:
             omni_discount += 1
         omnishot = True
-        if omni_discount >= 40:
-            if "Omni Shot" in total_level_up_options:
-                total_level_up_options.remove("Omni Shot")
-                print("Removed Omni Shot from Pool")
-
     elif selected_option == "Dash":
         global can_dash, dash_discount
         if can_dash and dash_discount < 4:
             dash_discount += 1
-        if dash_discount >= 4:
-            if "Dash" in total_level_up_options:
-                total_level_up_options.remove("Dash")
-                print("Removed Dash from Pool")
         can_dash = True
     elif selected_option == "Vamperism":
         global vamperism, vamperism_proc_chance
         if vamperism and vamperism_proc_chance < 9:
             vamperism_proc_chance += 1
-        if vamperism_proc_chance >= 9:
-            if "Vamperism" in total_level_up_options:
-                total_level_up_options.remove("Vamperism")
-                print("Removed Vamperism from Pool")
         vamperism = True
     elif selected_option == "Bullet Pierce":
         global bullet_pierce
@@ -664,10 +629,6 @@ def level_up_options(selected_option):
     elif selected_option == "Bonus Options!":
         global upgrade_option_amount
         upgrade_option_amount += 1
-        if upgrade_option_amount >= 5:
-            if "Bonus Options!" in total_level_up_options:
-                total_level_up_options.remove("Bonus Options!")
-                print("Removed Bonus Options from Pool")
     elif selected_option == "Energize":
         global energy_regen, max_energy
         energy_regen += 10
@@ -675,22 +636,14 @@ def level_up_options(selected_option):
     elif selected_option == "More Damage":
         global damage_buff
         damage_buff += 1
-        if damage_buff >= 3:
-            if "More Damage" in total_level_up_options:
-                total_level_up_options.remove("More Damage")
-                print("Removed More Damage from Pool")
     elif selected_option == "Super Vitality":
         global health_regen, max_hp
         health_regen += 1
         max_hp += 10
     elif selected_option == "Shields":
         global shields, shield_chance
-        if shields and shield_chance > 2:
+        if shields and shield_chance > 1:
             shield_chance -= 1
-        if shield_chance <= 2:
-            if "Shields" in total_level_up_options:
-                total_level_up_options.remove("Shields")
-                print ("Removed Shields from Pool")
         shields = True
     elif selected_option == "Multishot":
         global multi_shot
@@ -709,13 +662,17 @@ def level_up_options(selected_option):
     print (f"You selected option: {selected_option}")
 
     game_state = "game"
+# initialization
+
+pygame.display.set_caption('Balls: Game of the Year Edition!')
+
+clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 40)
+running = True
 
 def restart():
-    global max_hp, bg_color, shields, shield_chance, health_regen, shoot_cd, multi_shot, dabloons, player_hp, max_energy, energy, player, current_wave, kills, level, lvl_threshold, enemy_ai_level, game_state, dt, vamperism_proc_chance, omni_discount, dash_discount, damage_buff, omnishot, vamperism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, dashing, all_mode, level_select, can_dash, using_energy
+    global max_hp, shields, shield_chance, health_regen, shoot_cd, multi_shot, dabloons, player_hp, max_energy, energy, player, current_wave, kills, level, lvl_threshold, enemy_ai_level, game_state, dt, vamperism_proc_chance, omni_discount, dash_discount, damage_buff, omnishot, vamperism, fired_bullets, player_location, move_speed, enemy_count, enemies, bullet_count, bullets, dashing, all_mode, level_select, can_dash, using_energy
     max_hp = 400
-    bg_color = "#91A8D0"
-    pygame.mixer.music.load("Thundersnail.mp3")
-    pygame.mixer.music.play(-1, 0.0)
     shoot_cd = 0
     dabloons = 0
     player_hp = max_hp
@@ -734,6 +691,7 @@ def restart():
     damage_buff = 0
     omnishot = False
     vamperism = False
+    fired_bullets = 0
     player_location = Vector2(width / 2, height / 2)
     # stability = 100
     move_speed = base_move_speed
@@ -748,218 +706,7 @@ def restart():
     level_select = False
     can_dash = False
     using_energy = False
-    multi_shot = 1
-    shield_chance = 10
+    multi_shot = 0
+    shield_chance = 0
     shields = False
     health_regen = 0
-
-# initialization
-
-pygame.display.set_caption('Balls: Game of the Year Edition!')
-
-clock = pygame.time.Clock()
-font = pygame.font.SysFont(None, 40)
-running = True
-
-# Intro Screen
-
-# TBD
-
-button_init(width/2.5,height/4,350,50, "start", "start", True, True)
-button_init(width/2.5,height/3.2,350,50, "Start Dev Mode", "Start Dev Mode", True, True)
-
-# Game Loop
-while running:
-    screen.fill(bg_color)
-
-    # Gets Mouse
-    mouse = pygame.mouse.get_pos()
-
-    # poll for events
-
-    # pygame.QUIT event means the user clicked X to close your window
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-
-    if game_state == "menu":
-        button()
-
-    if game_state == "game":
-
-        #if event.type == pygame.MOUSEBUTTONDOWN:
-        #    shooting = True
-        #if event.type == pygame.MOUSEBUTTONUP:
-        #    shooting = False
-
-    # Reset Velocity Addition
-        player_added_velocity = Vector2(0, 0)
-        if energy > max_energy:
-            energy = max_energy
-        player_hp += health_regen
-        if player_hp > max_hp:
-            player_hp = max_hp
-            player_damaged = False
-
-        # Applies Damage Color to Player
-        if player_hp > 0:
-            damaged_percent = 1 - (player_hp / max_hp)
-        else: damaged_percent = 1
-        d_color = base_color.lerp(Color("black"), damaged_percent)
-
-        using_energy = False
-
-    # Applies low stability movement debuff
-    #if stability_mode:
-    #    # Sets minimum stability
-    #    if stability < stability_floor:
-    #        stability = stability_floor
-    #    if stability != 0:
-    #
-    #        # Formula makes it more likely to trigger at lower stability, and more intense, auto adjusts itself to the stability floor, so no need to re-configure it
-    #        drunk_trigger = random.randint(0, int(-stability_floor - abs(stability + (stability_floor // stability_impact) - stability_floor / 3))) <= 10 and stability < 0
-    #        # Formula makes it more likely to trigger at lower stability, and more intense, auto adjusts itself to the stability floor, so no need to re-configure it
-    #        if drunk_trigger:
-    #            player_added_velocity.y += random.uniform(abs(2 * stability / stability_impact),
-    #                                                  -abs(2 * stability / stability_impact))
-    #            player_added_velocity.x += random.uniform(abs(2 * stability / stability_impact),
-    #                                                  -abs(2 * stability / stability_impact))
-
-        # Button
-        button()
-
-        #prevents post death hp/energy gain error
-        if player == "dead":
-            player_hp = 0
-            energy = 0
-
-        # Controls
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_w]:
-            player_added_velocity.y -= move_speed * dt
-        if keys[pygame.K_s]:
-            player_added_velocity.y += move_speed * dt
-        if keys[pygame.K_a]:
-            player_added_velocity.x -= move_speed * dt
-        if keys[pygame.K_d]:
-            player_added_velocity.x += move_speed * dt
-        if keys[pygame.K_LSHIFT] and energy >= 1 and can_dash:
-            player_velocity.x *= 1.1
-            player_velocity.y *= 1.1
-            energy -= 5 - dash_discount
-            dashing = True
-            using_energy = True
-        else:
-            dashing = False
-
-        # To be honest, this feature was kinda useless, goodbye forever you wretch
-        #if keys[pygame.K_r]:
-        #    dir_shift()
-
-        # Shooting Logic
-        if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
-            shoot("left_up")
-        elif keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
-            shoot("right_up")
-        elif keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
-            shoot("right_down")
-        elif keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
-            shoot("left_down")
-        elif keys[pygame.K_LEFT]:
-            shoot("left")
-        elif keys[pygame.K_RIGHT]:
-            shoot("right")
-        elif keys[pygame.K_UP]:
-            shoot("up")
-        elif keys[pygame.K_DOWN]:
-            shoot("down")
-
-        # Dev Keys
-        if keys[pygame.K_v]:
-            enemy_init("basic")
-        if keys[pygame.K_SPACE] and omnishot:
-            shoot("all")
-
-
-
-    # Shooting/Energy Moved to Shoot Function
-    #if player == "alive":
-    #    if shooting == True and energy > 0:
-    #        if shoot_cd >= shoot_cd_len:
-    #            shoot(direction)
-    #            energy -= 15
-    #            shoot_cd = 0
-    #        else:
-    #            shoot_cd += 1
-    #    elif shooting == False and energy < max_energy:
-    #        energy += energy_regen
-    #        shoot_cd += 1
-    #    elif shooting:
-    #        print("Out of Energy")
-    #    else:
-    #        shoot_cd += 1
-
-        # The Enemy
-        enemy()
-
-        # Player is You
-        if player == "alive":
-            driver()
-        else:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-            game_state = "MORTIS"
-            pygame.mixer.Sound("mortis_lBkstHG.mp3").play(0, -1, 0)
-            pygame.mixer.music.stop()
-
-        # The Bullets
-        bullet()
-
-        if len(enemies) <= 0:
-            wave()
-
-        if kills >= lvl_threshold-level:
-            #lvl_up()
-            lvl_threshold += level + 3
-            kills = 0
-            player_hp = max_hp
-            game_state = "level_up"
-            player_damaged = False
-            d_color = base_color
-            player = "alive"
-
-        ui()
-
-        button()
-
-        if energy < max_energy and using_energy == False:
-            energy += energy_regen
-        shoot_cd += 1
-
-    if game_state == "level_up":
-        if len(buttons) <= 0:
-            level_button_array()
-        button()
-
-    if game_state == "MORTIS":
-        draw.circle(screen, "white", player_location, 30)
-        text_surface = font.render("M O R T I S", True, "white")
-        screen.blit(text_surface, (width / 2 - 100, height / 2 - 20))
-        text_surface = font.render("R to Restart", True, "white")
-        screen.blit(text_surface, (width / 2 - 105, height / 2 + 40))
-        bg_color = "black"
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_r]:
-            # Reset Game
-
-            restart()
-        ui()
-        bullet()
-        enemy()
-        bullet()
-    # misc
-    pygame.display.flip()
-    dt = clock.tick(60) / 1000
-
-print("The Game has ended")
