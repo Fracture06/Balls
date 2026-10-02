@@ -699,10 +699,6 @@ def level_up_options(selected_option):
     elif selected_option == "More Damage":
         global damage_buff
         damage_buff += 1
-        if damage_buff >= 3:
-            if "More Damage" in total_level_up_options:
-                total_level_up_options.remove("More Damage")
-                print("Removed More Damage from Pool")
     elif selected_option == "Super Vitality":
         global health_regen, max_hp
         health_regen += 1
@@ -923,8 +919,6 @@ while running:
         if keys[pygame.K_SPACE] and omnishot:
             shoot("all")
 
-
-
     # Shooting/Energy Moved to Shoot Function
     #if player == "alive":
     #    if shooting == True and energy > 0:
@@ -1000,12 +994,12 @@ while running:
         keys = pygame.key.get_pressed()
         if keys[pygame.K_r]:
             # Reset Game
-
             restart()
             button_init(width / 2.5, height / 4, 350, 50, "start", "start", True, True)
             button_init(width / 2.5, height / 3.2, 350, 50, "Start Dev Mode", "Start Dev Mode", True, True)
             button_init(width / 2.5, height / 2.66, 350, 50, "Start Easy Mode", "Start Easy Mode", True, True)
             game_state = "menu"
+
         ui()
         bullet()
         enemy()
